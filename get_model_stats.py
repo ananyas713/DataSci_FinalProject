@@ -43,7 +43,7 @@ def get_model_stats():
     all_pat = np.array([9])
     count = 1
 
-    for file in files[0:13]:
+    for file in files:
         #print(file)
         X = pd.read_table(file,header=None)
         #print(len(X))
@@ -64,7 +64,7 @@ def get_model_stats():
     all_pat = np.array([9])
     count = 1
 
-    for file in files[0:13]:
+    for file in files:
         #print(file)
         X = pd.read_table(file,header=None)
         hunt = pd.concat([hunt,X], ignore_index=True)
@@ -84,7 +84,7 @@ def get_model_stats():
     all_pat = np.array([9])
     count = 1
 
-    for file in files[0:13]:
+    for file in files:
         #print(file)
         X = pd.read_table(file, header = None)
         park = pd.concat([park, X], ignore_index=True)
@@ -152,15 +152,13 @@ def get_model_stats():
         Windowed.loc[Windowed.combpatient==i, 'normTime'] = normTime
   
     #for each window
-    numwindows = 10
-    frame_length = 30
+
     windows = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
-    pats = []
-    labels = []
+
     allfeats = pd.DataFrame()
 
     #allfeats = dict()
-    for subject in range(1,56):
+    for subject in range(1,np.asarray(Windowed.combpatient)[-1]+1):
         pat = Windowed.loc[Windowed.combpatient == subject]
         aggfeats = pd.DataFrame()
         windfeats = pd.DataFrame()
@@ -179,7 +177,7 @@ def get_model_stats():
         subjectfeats = pd.concat([aggfeats, windfeats], axis=1)
         allfeats = pd.concat([allfeats,subjectfeats])
 
-    allfeats = allfeats.set_index(np.arange(1,56))
+    allfeats = allfeats.set_index(np.arange(1,np.asarray(Windowed.combpatient)[-1]+1))
     allfeats['labels'] = np.asarray(yvec['label'])
 
     max_acc = 0

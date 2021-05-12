@@ -25,13 +25,33 @@ test_acc = overall[[2]]
 ideal_rand = overall[[3]]
 train_data = overall[[4]]
 train_labels = overall[[5]]
+
+
 ```
 
 Inputs {.sidebar}
 -----------------------------------------------------------------------
 ```{r}
- fileInput("file", label = h4("Please select a text file from the gait_data directory"))
- radioButtons("waveform", 
+selectInput("disease", 
+            label = h4("Select a disease type from the gait_data directory"), 
+            choices = list("Control" = 0, 
+                           "Amyotrophic lateral sclerosis" = 1, 
+                           "Huntingtons" = 2, 
+                           "Parksinsons" = 3), 
+            selected = 0)
+
+selectInput("Patient number", 
+            label = "Select patient number", 
+            choices = 1:16)
+
+observeEvent(input$disease,
+             selected_dis = input$disease
+             disease_dat =  
+  updateSelectInput(session, "Month", "Month", 
+                  choices = data$Month[data$Year==input$Year]))
+)
+
+radioButtons("waveform", 
              label = h4("Select which waveform data to view"), 
              choices = list("Left Stride Interval" = "lstride", 
              "Right Stride Interval" = "rstride", 
@@ -46,6 +66,7 @@ Inputs {.sidebar}
              "Double Support Interval" = "dsupport", 
              "Double Support Interval (%)" = "dsupport_int"), 
              selected = "lstride")
+
 ```
 
 Row {data-height=400, .tabset}
