@@ -64,7 +64,15 @@ ProcessDF = function(filename) {
 
 output$dynamic <- renderUI({ 
   if (!is.null(input$file)) {
-    plotlyOutput("plot")
+    filename = input$file
+    if (str_detect(filename$name, ".txt")) {
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) || 
+        (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
+        (str_detect(filename$name, "test"))) {
+          plotlyOutput("plot")
+        } else textOutput("invalidtxt")
+      }
+    else textOutput("invalidtxt")
   }
   else textOutput("text")
 })
@@ -74,10 +82,17 @@ output$plot <- renderPlotly({
                   print(p) 
                 })
 output$text <- renderText({ "No file selected" })
+output$invalidtxt <- renderText({"Invalid file selected"})
 
 ```
 
 ### Processed Data
+
+```{r}
+
+```
+
+### Final Prediction
 
 ```{r}
 
@@ -96,4 +111,4 @@ For more information, visit https://www.physionet.org/content/gaitndd/1.0.0/
 
 This tool was created for a class and HAS NOT been scientifically validated. Any results derived from this app should be taken with a grain of salt. We are not doctors. This app is not meant to provide any definitive diagnoses. If you have any concerns relating to your gait, please consult a professional instead of relying on what this app says. 
 
-Furthermore, the model we are using has been trained and tested on a very small number of samples (51 and 14, respectively). Therefore, the accuracy provided may not be representative of how our model would perform in a real-world setting. 
+Furthermore, the model we are using has been trained and tested on a very small number of samples (48 and 16, respectively). Therefore, the accuracy provided may not be representative of how our model would perform in a real-world setting. 
