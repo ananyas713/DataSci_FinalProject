@@ -2,7 +2,6 @@
 title: "Gait Analyzer"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: rows
     social: menu
     source_code: embed 
 runtime: shiny
@@ -30,10 +29,9 @@ train_labels = overall[[5]]
 
 Inputs {.sidebar}
 -----------------------------------------------------------------------
-
 ```{r}
  fileInput("file", label = h4("Please select a text file from the gait_data directory"))
- radioButtons("waveform", label = h4("Select which waveform data to view"), 
+ radioButtons("waveform", label = h4("Select which data to view"), 
                   choices = list("Left Stride Interval" = "lstride", "Right Stride Interval" 
                                  = "rstride", "Left Swing Interval" = "lswing", "Right Swing
                                  Interval" = "rswing", "Left Swing Interval (%)" = "lswing_int",
@@ -43,44 +41,6 @@ Inputs {.sidebar}
                                  Interval (%)" = "rstance_int", "Double Support Interval" = 
                                  "dsupport", "Double Support Interval (%)" = "dsupport_int"), 
                   selected = "lstride")
-```
-
-Row {data-height=600, .tabset}
------------------------------------------------------------------------
-
-### Raw Data
-
-```{r}
-
-uiOutput("dynamic")
-
-ProcessDF = function(filename) {
-  file = read.table(paste0("gait_data/",filename$name))
-  keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
-            'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
-  colnames(file) = keys
-  return(file)
-}
-
-output$dynamic <- renderUI({ 
-  if (!is.null(input$file)) {
-    plotlyOutput("plot")
-  }
-  else textOutput("text")
-})
-
-output$plot <- renderPlotly({ 
-                  p = ggplot(ProcessDF(input$file), aes_string(x = "time", y = input$waveform)) + geom_line()
-                  print(p) 
-                })
-output$text <- renderText({ "No file selected" })
-
-```
-
-### Processed Data
-
-```{r}
-
 ```
 
 Row {data-height=400, .tabset}
