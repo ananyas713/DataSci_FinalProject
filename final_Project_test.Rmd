@@ -25,7 +25,6 @@ test_acc = overall[[2]]
 ideal_rand = overall[[3]]
 train_data = overall[[4]]
 train_labels = overall[[5]]
-cols = overall[[6]]
 ```
 
 Inputs {.sidebar}
@@ -50,6 +49,7 @@ Row {data-height=400, .tabset}
 ### About
 
 The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+
 For more information, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
 
 ### Disclaimer

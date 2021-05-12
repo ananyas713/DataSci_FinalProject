@@ -209,10 +209,11 @@ def get_model_stats():
         guess_ind = set(guess_ind)
         guess_ind = list(guess_ind)
   
-        train_data = train_data[train_data.columns[guess_ind]]
+        train_data2 = train_data[train_data.columns[guess_ind]]
+        train_data = train_data[0:5]
         test_data = test_data[test_data.columns[guess_ind]]
 
-        train_data = StandardScaler().fit_transform(train_data)
+        train_data = StandardScaler().fit_transform(train_data2)
         test_data = StandardScaler().fit_transform(test_data)
 
         rf = RandomForestClassifier(max_features='auto', n_estimators=200, max_depth=5, criterion='gini')
