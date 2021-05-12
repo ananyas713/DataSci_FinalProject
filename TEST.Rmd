@@ -1,0 +1,85 @@
+---
+title: "Gait Analyzer"
+output: 
+  flexdashboard::flex_dashboard:
+    social: menu
+    source_code: embed 
+runtime: shiny
+---
+
+```{r setup, echo = FALSE, warning = FALSE, include = FALSE}
+library(shiny)
+library(reticulate)
+library(tidyverse)
+library(plotly)
+py_install("pandas")
+py_install("scikit-learn")
+py_install("glob2")
+```
+
+```{r, echo = FALSE, warning = FALSE, include = FALSE}
+source_python("get_model_stats.py")
+overall = get_model_stats()
+train_acc = overall[[1]]
+test_acc = overall[[2]]
+ideal_rand = overall[[3]]
+train_data = overall[[4]]
+train_labels = overall[[5]]
+
+
+```
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+```{r}
+selectInput("disease", 
+            label = h4("Select a disease type from the gait_data directory"), 
+            choices = list("Control" = 0, 
+                           "Amyotrophic lateral sclerosis" = 1, 
+                           "Huntingtons" = 2, 
+                           "Parksinsons" = 3), 
+            selected = 0)
+
+selectInput("Patient number", 
+            label = "Select patient number", 
+            choices = 1:16)
+
+observeEvent(input$disease,
+             selected_dis = input$disease
+             disease_dat =  
+  updateSelectInput(session, "Month", "Month", 
+                  choices = data$Month[data$Year==input$Year]))
+)
+
+radioButtons("waveform", 
+             label = h4("Select which waveform data to view"), 
+             choices = list("Left Stride Interval" = "lstride", 
+             "Right Stride Interval" = "rstride", 
+             "Left Swing Interval" = "lswing", 
+             "Right Swing Interval" = "rswing", 
+             "Left Swing Interval (%)" = "lswing_int", 
+             "Right Swing Interval (%)" = "rswing_int", 
+             "Left Stance Interval" = "lstance", 
+             "Right Stance Interval" = "rstance",
+             "Left Stance Interval (%)" = "lstance_int", 
+             "Right Stance Interval (%)" = "rstance_int", 
+             "Double Support Interval" = "dsupport", 
+             "Double Support Interval (%)" = "dsupport_int"), 
+             selected = "lstride")
+
+```
+
+Row {data-height=400, .tabset}
+-----------------------------------------------------------------------
+
+### About
+
+The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+
+For more information, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
+
+### Disclaimer
+
+This tool was created for a class and HAS NOT been scientifically validated. Any results derived from this app should be taken with a grain of salt. We are not doctors. This app is not meant to provide any definitive diagnoses. If you have any concerns relating to your gait, please consult a professional instead of relying on what this app says. 
+
+Furthermore, the model we are using has been trained and tested on a very small number of samples (51 and 14, respectively). Therefore, the accuracy provided may not be representative of how our model would perform in a real-world setting. 
