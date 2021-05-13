@@ -27,6 +27,7 @@ ideal_rand = overall[[3]]
 train_data = overall[[4]]
 train_labels = overall[[5]]
 true_ind = overall[[6]]
+alldat = overall[[7]]
 ```
 
 Inputs {.sidebar}
@@ -55,7 +56,7 @@ Row {data-height=600, .tabset}
 
 uiOutput("dynamic")
 
-ProcessDF = function(filename) {
+FileDF = function(filename) {
   file = read.table(paste0("gait_data/",filename$name))
   keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
             'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
@@ -79,7 +80,8 @@ output$dynamic <- renderUI({
 })
 
 output$plot <- renderPlotly({
-                  p = ggplot(ProcessDF(input$file), aes_string(x = "time", y = input$waveform)) + geom_line()
+  
+                  p = ggplot(FileDF(input$file), aes_string(x = "time", y = input$waveform)) + geom_line()
                   print(p)
                 })
 output$text <- renderText({ "No file selected" })
@@ -90,7 +92,52 @@ output$invalidtxt <- renderText({"Invalid file selected"})
 ### Processed Data
 
 ```{r}
+uiOutput("dynamic2")
 
+ProcessDF = function(filename) {
+  file = read.table(paste0("gait_data/",filename$name))
+  keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
+            'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
+  colnames(file) = keys
+  processed = file
+  normTime = 0
+  time1 = as.numeric(unlist(processed$time))
+  for (i in seq(1, length(time1)-1)) {
+    normTime = append(normTime, time1[i]-time1[1])
+  } 
+  processed$normTime = normTime
+  for (key in keys) {
+        temp = as.numeric(unlist(processed[key]))
+        z = (temp - mean(temp))/sd(temp)
+        ind = which(z > 3)
+        temp[ind] = mean(temp)
+        processed[key] = temp
+  }
+  processed <- processed %>% select(-'time')
+  return(processed)
+}
+
+output$dynamic2 <- renderUI({
+  if (!is.null(input$file)) {
+    filename = input$file
+    if (str_detect(filename$name, ".txt")) {
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) ||
+        (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
+        (str_detect(filename$name, "test"))) {
+          plotlyOutput("plot2")
+        } else textOutput("invalidtxt")
+      }
+    else textOutput("invalidtxt")
+  }
+  else textOutput("text")
+})
+
+output$plot2 <- renderPlotly({
+                  p = ggplot(ProcessDF(input$file), aes_string(x = "normTime", y = input$waveform)) + geom_line() + geom_vline(xintercept =  c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300), color = "blue", linetype = "dashed")
+                  print(p)
+                })
+output$text <- renderText({ "No file selected" })
+output$invalidtxt <- renderText({"Invalid file selected"})
 ```
 
 ### Final Prediction
