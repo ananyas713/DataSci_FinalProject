@@ -12,21 +12,115 @@ library(shiny)
 library(reticulate)
 library(tidyverse)
 library(plotly)
-py_install("pandas")
-py_install("scikit-learn")
-py_install("glob2")
+
+
+library(flexdashboard)
+library(magrittr)
+library(dplyr)
+library(devtools)
+library(ggplot2)
+library(reshape2)
+library(tidyr)
+library(leaflet)
+#py_install("pandas")
+#py_install("scikit-learn")
+#py_install("glob2")
 ```
 
-```{r, echo = FALSE, warning = FALSE, include = FALSE}
-source_python("get_model_stats.py")
-overall = get_model_stats()
-train_acc = overall[[1]]
-test_acc = overall[[2]]
-ideal_rand = overall[[3]]
-train_data = overall[[4]]
-train_labels = overall[[5]]
+```{python, include=FALSE}
+import pandas as pd
+import numpy as np
+import glob
+keys = ['time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
+        'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
+        
+files = glob.glob('gait_data/control*.{}'.format("txt"))
+control = pd.DataFrame()
+all_pat = np.array([9])
+count = 1
+
+for file in files:
+    X = pd.read_table(file,header=None)
+    control = pd.concat([control,X], ignore_index=True)
+    patient = np.ones(len(X), dtype=int) * count
+    all_pat = np.concatenate((all_pat, patient))
+    count += 1
+
+control.columns = keys
+all_patients = np.delete(all_pat, 0)
+control['patient'] = all_patients
+control['combpatient'] = all_patients
+control['label'] = 0
+
+files = glob.glob('gait_data/als*.{}'.format("txt"))
+als = pd.DataFrame()
+all_pat = np.array([9])
+count = 1
+
+for file in files:
+    X = pd.read_table(file,header=None)
+    als = pd.concat([als,X], ignore_index=True)
+    patient = np.ones(len(X), dtype=int) * count
+    all_pat = np.concatenate((all_pat, patient))
+    count += 1
+
+als.columns = keys
+all_patients = np.delete(all_pat, 0)
+als['patient'] = all_patients
+numpat_control = np.asarray(control.combpatient)
+als['combpatient'] = all_patients + numpat_control[-1] 
+als['label'] = 1
+
+#huntingtons
+files = glob.glob('gait_data/hunt*.{}'.format("txt"))
+hunt = pd.DataFrame()
+all_pat = np.array([9])
+count = 1
+
+for file in files:
+    X = pd.read_table(file,header=None)
+    hunt = pd.concat([hunt,X], ignore_index=True)
+    patient = np.ones(len(X), dtype=int) * count
+    all_pat = np.concatenate((all_pat, patient))
+    count += 1
+
+hunt.columns = keys
+all_patients = np.delete(all_pat, 0)
+hunt['patient'] = all_patients
+numpat_als = np.asarray(als.combpatient)
+hunt['combpatient'] = all_patients + numpat_als[-1] 
+hunt['label'] = 2
+
+#parkinsons
+files = glob.glob('gait_data/park*.{}'.format("txt"))
+park = pd.DataFrame()
+all_pat = np.array([9])
+count = 1
+
+for file in files:
+    X = pd.read_table(file, header = None)
+    park = pd.concat([park, X], ignore_index=True)
+    patient = np.ones(len(X), dtype=int) * count
+    all_pat = np.concatenate((all_pat, patient))
+    count += 1
+
+park.columns = keys
+all_patients = np.delete(all_pat, 0)
+park['patient'] = all_patients
+numpat_hunt = np.asarray(hunt.combpatient)
+park['combpatient'] = all_patients + numpat_hunt[-1] 
+park['label'] = 3
+
+alldat = pd.concat([control, als, hunt, park])
+#alldatz = alldat.sample(frac=1).reset_index(drop=True)
+
+```
+
+```{r}
 
 
+alldat <- py$alldat
+alldat
 ```
 
 Inputs {.sidebar}
@@ -39,17 +133,21 @@ selectInput("disease",
                            "Huntingtons" = 2, 
                            "Parksinsons" = 3), 
             selected = 0)
-
+    
 selectInput("Patient number", 
             label = "Select patient number", 
             choices = 1:16)
 
-observeEvent(input$disease,
-             selected_dis = input$disease
-             disease_dat =  
-  updateSelectInput(session, "Month", "Month", 
-                  choices = data$Month[data$Year==input$Year]))
-)
+
+
+observeEvent(input$disease,{
+  pats <- alldat[alldat$label == input$disease,]$combpatient[1]:alldat[alldat$label == 0,]$combpatient[nrow(alldat[alldat$label == input$disease])]
+  updateSelectInput(session,"Patient number",
+                    choices = pats)
+})
+
+  
+
 
 radioButtons("waveform", 
              label = h4("Select which waveform data to view"), 
@@ -69,12 +167,56 @@ radioButtons("waveform",
 
 ```
 
+
+```{r}
+uiOutput("dynamic")
+
+ProcessDF = function(filename) {
+  file = read.table(paste0("gait_data/",filename$name))
+  keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
+            'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
+  colnames(file) = keys
+  for (key in keys) {
+        temp = np.asarray(file[key])
+        z = np.abs(stats.zscore(temp))
+        ind = np.where(z > 3)
+        temp[ind] = np.mean(temp)
+        file[key] = temp
+  }
+  return(file)
+}
+
+output$dynamic <- renderUI({
+  if (!is.null(input$file)) {
+    filename = input$file
+    if (str_detect(filename$name, ".txt")) {
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) ||
+        (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
+        (str_detect(filename$name, "test"))) {
+          plotlyOutput("plot")
+        } else textOutput("invalidtxt")
+      }
+    else textOutput("invalidtxt")
+  }
+  else textOutput("text")
+})
+
+output$plot <- renderPlotly({
+                  p = ggplot(ProcessDF(input$file), aes_string(x = "time", y = input$waveform)) + geom_line()
+                  print(p)
+                })
+output$text <- renderText({ "No file selected" })
+output$invalidtxt <- renderText({"Invalid file selected"})
+```
+
+
+
 Row {data-height=400, .tabset}
 -----------------------------------------------------------------------
 
 ### About
 
-The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+The train accuracy of the model is:  and the test accuracy of the model is: . 
 
 For more information, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
 
