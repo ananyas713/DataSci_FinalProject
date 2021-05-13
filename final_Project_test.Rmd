@@ -18,7 +18,7 @@ py_install("scikit-learn")
 py_install("glob2")
 ```
 
-```{r, echo = FALSE, warning = FALSE, include = FALSE}
+```{r global, echo = FALSE, warning = FALSE, include = FALSE}
 source_python("get_model_stats.py")
 overall = get_model_stats()
 train_acc = overall[[1]]
@@ -26,6 +26,7 @@ test_acc = overall[[2]]
 ideal_rand = overall[[3]]
 train_data = overall[[4]]
 train_labels = overall[[5]]
+true_ind = overall[[6]]
 ```
 
 Inputs {.sidebar}
@@ -62,11 +63,11 @@ ProcessDF = function(filename) {
   return(file)
 }
 
-output$dynamic <- renderUI({ 
+output$dynamic <- renderUI({
   if (!is.null(input$file)) {
     filename = input$file
     if (str_detect(filename$name, ".txt")) {
-      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) || 
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) ||
         (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
         (str_detect(filename$name, "test"))) {
           plotlyOutput("plot")
@@ -77,9 +78,9 @@ output$dynamic <- renderUI({
   else textOutput("text")
 })
 
-output$plot <- renderPlotly({ 
+output$plot <- renderPlotly({
                   p = ggplot(ProcessDF(input$file), aes_string(x = "time", y = input$waveform)) + geom_line()
-                  print(p) 
+                  print(p)
                 })
 output$text <- renderText({ "No file selected" })
 output$invalidtxt <- renderText({"Invalid file selected"})
@@ -94,7 +95,38 @@ output$invalidtxt <- renderText({"Invalid file selected"})
 
 ### Final Prediction
 
+Note: The prediction shown is based off the entire file, not just the selected component.
+
 ```{r}
+
+uiOutput("final")
+
+getPred = function(filename) {
+  file = filename$name
+  source_python("get_model_pred.py")
+  prediction = get_model_pred(file, train_data, train_labels, true_ind)
+  return(prediction)
+}
+
+output$final <- renderUI({
+  if (!is.null(input$file)) {
+    filename = input$file
+    if (str_detect(filename$name, ".txt")) {
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) ||
+        (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
+        (str_detect(filename$name, "test"))) {
+          textOutput("predtxt")
+        } else textOutput("invalidtext")
+      }
+    else textOutput("invalidtext")
+  }
+  else textOutput("txt")
+})
+
+output$predtxt <- renderText({paste("Based on this file, we predict that
+                                    the subject",getPred(input$file))})
+output$txt <- renderText({ "No file selected" })
+output$invalidtext <- renderText({"Invalid file selected"})
 
 ```
 
@@ -103,9 +135,17 @@ Row {data-height=400, .tabset}
 
 ### About
 
-The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+Welcome to the Gait Analyzer tool! Here, we look at gait readings from force-sensitive resistors to determine whether a person has ALS, Parkinson's, Huntington's, or none of the above. 
 
-For more information, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
+We have trained a Random Forest model to make predictions. The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+
+To learn more about the dataset we used, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
+
+### Instructions
+
+You can select one of the provided text files (in the gait_data directory) to see how we process the data and make predictions. If you want to upload your own data, please make sure the format is the same as the examples provided. In order for this tool to work, you *must* have your data in the .txt file format, and the file itself has to be *in the gait_data directory*. Also make sure the file you provide includes "test" in the name. 
+
+**Important**: Please see the information under "Disclaimer" *before* uploading your own data. 
 
 ### Disclaimer
 
