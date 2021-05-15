@@ -1,5 +1,3 @@
-# DataSci_FinalProject
-
 # The Gait Analyzer App
 Authors: Ananya Swaminathan, Yvette Tan
 
