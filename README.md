@@ -34,9 +34,9 @@ While this shiny app flexdashboard was created in R, the data processing and mod
 
 
 
-## Contributions
-- Ananya: outlier removal, mean imputation, statistical feature generation; PCA, Model building; Shiny app raw data and prediction output
-- Yvette: datafile input+concatenation, patient numbering, time windowing, statistical feature generation; grid search, Model building; Shiny app processed data output; README documentation
+### Contributions
+- Ananya: outlier removal, mean imputation, statistical feature generation; PCA, Model building; Shiny app user interface, raw data output, and diseae prediction output
+- Yvette: datafile input, data concatenation, patient numbering, time windowing, statistical feature generation; grid search, Model building; Shiny app processed data output; README documentation
 
 
 ## References: 
