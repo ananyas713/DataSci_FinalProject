@@ -1,6 +1,6 @@
 # DataSci_FinalProject
 
-# The gait analyzer tool
+# The Gait Analyzer App
 Authors: Ananya Swaminathan, Yvette Tan
 
 This app was created as a tool to analyze gait data from patients with ALS, Parkinson's, Huntington's, or control patients, and to predict the neurological disease condition based on the data. The data used in this app are stride to stride measures of footfall contact times, derived from readings by force-sensitive resistors that give outputs proportional to the force under each foot. Each patient's data includes time series data of 13 signals (6 each for  the left and right sides): 
