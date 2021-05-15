@@ -25,8 +25,8 @@ Our model is by no means a method of diagnosis and HAS NOT been scientifically v
 
 ## App requirements:
 While this shiny app flexdashboard was created in R, the data processing and modeling were done through python. 
-• Required R libraries include: shiny, reticulate, tidyverse, and plotly. 
-• Required python libraries include pandas, scikit-learn, and glob2. 
+- Required R libraries include: shiny, reticulate, tidyverse, and plotly. 
+- Required python libraries include pandas, scikit-learn, and glob2. 
 
  The app runs through the final_Project.Rmd file. Other files that are required in the same repository as the Rmd include the get_model_stats.py and get_model_pred.py python files, which run the prediction models, as well as the gait_data folder, which hosts the gait time series data used for model building in the form of txt files. The data used was from the Gait in Neurodegerative Disease Database on the PhysioNet database, more information can be found at this link: https://www.physionet.org/content/gaitndd/1.0.0/
 

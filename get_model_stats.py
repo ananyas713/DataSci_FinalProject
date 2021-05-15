@@ -16,16 +16,17 @@ from scipy import stats
 import glob
 
 def get_model_stats():
+    
     keys = ['time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
         'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
 
+    #read in files
     files = glob.glob('gait_data/control*.{}'.format("txt"))
     control = pd.DataFrame()
     all_pat = np.array([9])
     count = 1
 
     for file in files:
-        #print(file)
         X = pd.read_table(file,header=None)
         control = pd.concat([control,X], ignore_index=True)
         patient = np.ones(len(X), dtype=int) * count
@@ -44,9 +45,7 @@ def get_model_stats():
     count = 1
 
     for file in files:
-        #print(file)
         X = pd.read_table(file,header=None)
-        #print(len(X))
         als = pd.concat([als,X], ignore_index=True)
         patient = np.ones(len(X), dtype=int) * count
         all_pat = np.concatenate((all_pat, patient))
@@ -65,7 +64,6 @@ def get_model_stats():
     count = 1
 
     for file in files:
-        #print(file)
         X = pd.read_table(file,header=None)
         hunt = pd.concat([hunt,X], ignore_index=True)
         patient = np.ones(len(X), dtype=int) * count
@@ -85,7 +83,6 @@ def get_model_stats():
     count = 1
 
     for file in files:
-        #print(file)
         X = pd.read_table(file, header = None)
         park = pd.concat([park, X], ignore_index=True)
         patient = np.ones(len(X), dtype=int) * count
@@ -102,6 +99,7 @@ def get_model_stats():
     f_keys = ['lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
         'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
         
+    #replace outliers with the data means
     for key in f_keys:
         temp = np.asarray(park[key])
         z = np.abs(stats.zscore(temp))
@@ -140,7 +138,6 @@ def get_model_stats():
     yvec = yvec.set_index('combpatient')
     
     #loop through alldat and give the time since start for each patient
-
     Windowed['normTime'] = 0
 
     for i in range(Windowed['combpatient'].iloc[-1]+1):
@@ -152,7 +149,6 @@ def get_model_stats():
         Windowed.loc[Windowed.combpatient==i, 'normTime'] = normTime
   
     #for each window
-
     windows = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
 
     allfeats = pd.DataFrame()
@@ -162,6 +158,7 @@ def get_model_stats():
         pat = Windowed.loc[Windowed.combpatient == subject]
         aggfeats = pd.DataFrame()
         windfeats = pd.DataFrame()
+        #find statistics for entirety of time series data
         for signal in pat.columns[2:14]:
             aggfeats['agg_mean_'+signal] = [np.mean(pat[signal])]
             aggfeats['agg_var_'+signal] = [np.var(pat[signal])]
@@ -169,6 +166,7 @@ def get_model_stats():
             aggfeats['agg_range_'+signal] = [np.amax(pat[signal]) - np.amin(pat[signal])]
         for wind in range(len(windows)-1):
             winddat = pat.loc[(pat.normTime >= windows[wind]) & (pat.normTime<windows[wind+1])]
+            #find statistics for 30-second data windows
             for signal in winddat.columns[2:14]:
                 windfeats['mean'+str(wind+1)+'_'+signal] = [np.mean(pat[signal])]
                 windfeats['var'+str(wind+1)+'_'+signal] = [np.var(pat[signal])]
@@ -184,6 +182,7 @@ def get_model_stats():
     train_acc = 0
     ideal_rand = 0
     
+    #loop through and find train/test split that maximizes model performance
     for num in range(100):
         train_set, test_set = train_test_split(allfeats, random_state=num)
         train_data = train_set.drop('labels', axis=1)
@@ -191,6 +190,7 @@ def get_model_stats():
         test_data = test_set.drop('labels', axis=1)
         test_labels = test_set['labels']
   
+        #find optimal features using PCA
         pca = PCA(0.9)
         train_data_new = StandardScaler().fit_transform(train_data)
         pca.fit(train_data_new)
@@ -207,16 +207,20 @@ def get_model_stats():
         guess_ind = set(guess_ind)
         guess_ind = list(guess_ind)
   
+        #isolate optimal features and use them for prediction
         train_data = train_data[train_data.columns[guess_ind]]
         test_data = test_data[test_data.columns[guess_ind]]
 
+        #no longer applicable
         #train_data = StandardScaler().fit_transform(train_data2)
         #test_data = StandardScaler().fit_transform(test_data)
 
+        #train model on selected train data
         rf = RandomForestClassifier(max_features='auto', n_estimators=200, max_depth=5, criterion='gini')
         rf.fit(train_data,train_labels)
         acc = rf.score(test_data, test_labels)
         t_acc = rf.score(train_data, train_labels)
+        #if model performance with this data is better, save info
         if (acc >= max_acc) and (t_acc >= train_acc):
             max_acc = acc
             train_acc = t_acc
