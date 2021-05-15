@@ -85,7 +85,7 @@ output$dynamic <- renderUI({
 #plot the raw data
 output$plot <- renderPlotly({
   
-                  p = ggplot(FileDF(input$file), aes_string(x = "time", y = input$waveform)) + geom_line()
+                  p = ggplot(FileDF(input$file), aes_string(x = "time", y = input$waveform)) + xlab("Time (sec)") + geom_line() 
                   print(p)
                 })
 output$text <- renderText({ "No file selected" })
@@ -144,7 +144,7 @@ output$dynamic2 <- renderUI({
 })
 #plot processed data, also plotted vertical lines to symbolize where statistical features were calculated for each 30 second time zone. 
 output$plot2 <- renderPlotly({
-                  p = ggplot(ProcessDF(input$file), aes_string(x = "normTime", y = input$waveform)) + geom_line() + geom_vline(xintercept =  c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300), color = "blue", linetype = "dashed")
+                  p = ggplot(ProcessDF(input$file), aes_string(x = "normTime", y = input$waveform)) + geom_line() + xlab("Normalized Time (sec)") + geom_vline(xintercept =  c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300), color = "blue", linetype = "dashed") 
                   print(p)
                 })
 output$text2 <- renderText({ "No file selected" })
