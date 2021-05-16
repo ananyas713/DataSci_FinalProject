@@ -2,6 +2,7 @@
 title: "Gait Analyzer"
 output: 
   flexdashboard::flex_dashboard:
+    orientation: rows
     social: menu
     source_code: embed 
 runtime: shiny
@@ -10,280 +11,204 @@ runtime: shiny
 ```{r setup, echo = FALSE, warning = FALSE, include = FALSE}
 library(shiny)
 library(reticulate)
-```
-
-```{python, echo = FALSE, warning = FALSE, include = FALSE}
-repl_python()
-
-import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestClassifier
-from scipy import stats
-import glob
-
-keys = ['time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
-        'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
-
-files = glob.glob('gait_data/control*.{}'.format("txt"))
-control = pd.DataFrame()
-all_pat = np.array([9])
-count = 1
-
-for file in files:
-    #print(file)
-    X = pd.read_table(file,header=None)
-    control = pd.concat([control,X], ignore_index=True)
-    patient = np.ones(len(X), dtype=int) * count
-    all_pat = np.concatenate((all_pat, patient))
-    count += 1
-
-control.columns = keys
-all_patients = np.delete(all_pat, 0)
-control['patient'] = all_patients
-control['combpatient'] = all_patients
-control['label'] = 0
-
-files = glob.glob('gait_data/als*.{}'.format("txt"))
-als = pd.DataFrame()
-all_pat = np.array([9])
-count = 1
-
-for file in files[0:13]:
-    #print(file)
-    X = pd.read_table(file,header=None)
-    #print(len(X))
-    als = pd.concat([als,X], ignore_index=True)
-    patient = np.ones(len(X), dtype=int) * count
-    all_pat = np.concatenate((all_pat, patient))
-    count += 1
-
-als.columns = keys
-all_patients = np.delete(all_pat, 0)
-als['patient'] = all_patients
-numpat_control = np.asarray(control.combpatient)
-als['combpatient'] = all_patients + numpat_control[-1] 
-als['label'] = 1
-
-files = glob.glob('gait_data/hunt*.{}'.format("txt"))
-hunt = pd.DataFrame()
-all_pat = np.array([9])
-count = 1
-
-for file in files[0:13]:
-    #print(file)
-    X = pd.read_table(file,header=None)
-    hunt = pd.concat([hunt,X], ignore_index=True)
-    patient = np.ones(len(X), dtype=int) * count
-    all_pat = np.concatenate((all_pat, patient))
-    count += 1
-
-hunt.columns = keys
-all_patients = np.delete(all_pat, 0)
-hunt['patient'] = all_patients
-numpat_als = np.asarray(als.combpatient)
-hunt['combpatient'] = all_patients + numpat_als[-1] 
-hunt['label'] = 2
-
-files = glob.glob('gait_data/park*.{}'.format("txt"))
-park = pd.DataFrame()
-all_pat = np.array([9])
-count = 1
-
-for file in files[0:13]:
-    #print(file)
-    X = pd.read_table(file, header = None)
-    park = pd.concat([park, X], ignore_index=True)
-    patient = np.ones(len(X), dtype=int) * count
-    all_pat = np.concatenate((all_pat, patient))
-    count += 1
-
-park.columns = keys
-all_patients = np.delete(all_pat, 0)
-park['patient'] = all_patients
-numpat_hunt = np.asarray(hunt.combpatient)
-park['combpatient'] = all_patients + numpat_hunt[-1] 
-park['label'] = 3
-
-f_keys = ['lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
-        'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
-        
-for key in f_keys:
-  temp = np.asarray(park[key])
-  z = np.abs(stats.zscore(temp))
-  ind = np.where(z > 3)
-  temp[ind] = np.mean(temp)
-  park[key] = temp
-
-for key in f_keys:
-  temp = np.asarray(hunt[key])
-  z = np.abs(stats.zscore(temp))
-  ind = np.where(z > 3)
-  temp[ind] = np.mean(temp)
-  hunt[key] = temp
-  
-for key in f_keys:
-  temp = np.asarray(als[key])
-  z = np.abs(stats.zscore(temp))
-  ind = np.where(z > 3)
-  temp[ind] = np.mean(temp)
-  als[key] = temp
-  
-for key in f_keys:
-  temp = np.asarray(control[key])
-  z = np.abs(stats.zscore(temp))
-  ind = np.where(z > 3)
-  temp[ind] = np.mean(temp)
-  control[key] = temp
-  
-alldat = pd.concat([control, als, hunt, park])
-
-Windowed = alldat.copy()
-Windowed = Windowed.reset_index()
-
-yvec = Windowed[['combpatient','label']]
-yvec = yvec.drop_duplicates(subset='combpatient', keep="first")
-yvec = yvec.set_index('combpatient')
-
-#loop through alldat and give the time since start for each patient
-
-Windowed['normTime'] = 0
-
-for i in range(Windowed['combpatient'].iloc[-1]+1):
-  patient = Windowed.loc[Windowed.combpatient == i]
-  normTime = []
-  time1 = np.asarray(patient["time"])
-  for j in range(len(patient["time"])):
-    normTime.append(time1[j]-time1[0])
-
-  Windowed.loc[Windowed.combpatient==i, 'normTime'] = normTime
-  
-#for each window
-numwindows = 10
-frame_length = 30
-windows = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
-pats = []
-labels = []
-allfeats = pd.DataFrame()
-
-#allfeats = dict()
-for subject in range(1,56):
-  pat = Windowed.loc[Windowed.combpatient == subject]
-  aggfeats = pd.DataFrame()
-  windfeats = pd.DataFrame()
-  for signal in pat.columns[2:14]:
-    aggfeats['agg_mean_'+signal] = [np.mean(pat[signal])]
-    aggfeats['agg_var_'+signal] = [np.var(pat[signal])]
-    aggfeats['agg_med_'+signal] = [np.median(pat[signal])]
-    aggfeats['agg_range_'+signal] = [np.amax(pat[signal]) - np.amin(pat[signal])]
-  for wind in range(len(windows)-1):
-    winddat = pat.loc[(pat.normTime >= windows[wind]) & (pat.normTime<windows[wind+1])]
-    for signal in winddat.columns[2:14]:
-        windfeats['mean'+str(wind+1)+'_'+signal] = [np.mean(pat[signal])]
-        windfeats['var'+str(wind+1)+'_'+signal] = [np.var(pat[signal])]
-        windfeats['med'+str(wind+1)+'_'+signal] = [np.median(pat[signal])]
-        windfeats['range'+str(wind+1)+'_'+signal] = [np.amax(pat[signal]) - np.amin(pat[signal])]
-  subjectfeats = pd.concat([aggfeats, windfeats], axis=1)
-  allfeats = pd.concat([allfeats,subjectfeats])
-
-allfeats = allfeats.set_index(np.arange(1,56))
-allfeats['labels'] = np.asarray(yvec['label'])
-
-max_acc = 0
-train_acc2 = 0
-ideal_rand = 0
-
-for num in range(100):
-  train_set, test_set = train_test_split(allfeats, random_state=num)
-  train_data = train_set.drop('labels', axis=1)
-  train_labels = train_set['labels']
-  test_data = test_set.drop('labels', axis=1)
-  test_labels = test_set['labels']
-
-  pca = PCA(0.9)
-  train_data_new = StandardScaler().fit_transform(train_data)
-  test_data_new = StandardScaler().fit_transform(test_data)
-  pca.fit(train_data_new)
-  
-  ind_set = []
-  for val in range(len(abs(pca.components_))):
-    arr = abs(pca.components_[val])
-    ind_set.append(arr.argsort()[-1:][::-1])
-
-  guess_ind = []
-  
-  for j in range(len(ind_set)):
-    guess_ind.append(ind_set[j][0])
-  
-  a=1
-  guess_ind = set(guess_ind)
-  guess_ind = list(guess_ind)
-  train_data = train_data[train_data.columns[guess_ind]]
-  test_data = test_data[test_data.columns[guess_ind]]
-
-  train_data = StandardScaler().fit_transform(train_data)
-  test_data = StandardScaler().fit_transform(test_data)
-
-  rf = RandomForestClassifier(max_features='auto', n_estimators=200, max_depth=5,
-  criterion='gini')
-  rf.fit(train_data,train_labels)
-  acc = rf.score(test_data, test_labels)
-  t_acc = rf.score(train_data, train_labels)
-  if (acc >= max_acc) and (t_acc >= train_acc2):
-    max_acc = acc
-    train_acc2 = t_acc
-    ideal_rand = num
-
-train_set, test_set = train_test_split(allfeats, random_state=72)
-train_data = train_set.drop('labels', axis=1)
-train_labels = train_set['labels']
-test_data = test_set.drop('labels', axis=1)
-test_labels = test_set['labels']
-
-pca = PCA(0.9)
-train_data_new = StandardScaler().fit_transform(train_data)
-test_data_new = StandardScaler().fit_transform(test_data)
-pca.fit(train_data_new)
-  
-ind_set = []
-for val in range(len(abs(pca.components_))):
-  arr = abs(pca.components_[val])
-  ind_set.append(arr.argsort()[-1:][::-1])
-
-guess_ind = []
-for j in range(len(ind_set)):
-  guess_ind.append(ind_set[j][0])
-guess_ind = set(guess_ind)
-guess_ind = list(guess_ind)
-train_data = train_data[train_data.columns[guess_ind]]
-tra_dat = pd.DataFrame(train_data)
-test_data = test_data[test_data.columns[guess_ind]]
-
-train_data = StandardScaler().fit_transform(train_data)
-test_data = StandardScaler().fit_transform(test_data)
-
-rf = RandomForestClassifier(max_features='auto', n_estimators= 200, max_depth=5, criterion='gini')
-rf.fit(train_data,train_labels)
-    
-Cpred = rf.predict(test_data)
-test_acc  = rf.score(test_data,test_labels)
-train_acc = rf.score(train_data, train_labels)
-
-quit
+library(tidyverse)
+library(plotly)
+py_install("pandas")
+py_install("scikit-learn")
+py_install("glob2")
 ```
 
 ```{r global, echo = FALSE, warning = FALSE, include = FALSE}
-train_data = py$train_data
-test_acc = py$test_acc
-train_acc = py$train_acc
-train_acc2 = py$train_acc2
-test_acc2 = py$max_acc
-rand_seed = py$ideal_rand
-
-sprintf('The model accuracy is %f', test_acc2)
-sprintf('The train accuracy of the model is %f', train_acc)
-sprintf('The test accuracy of the model is %f', test_acc)
+#read and evaluate python script to obtain model's prediction stats
+source_python("get_model_stats.py")
+overall = get_model_stats()
+train_acc = overall[[1]]
+test_acc = overall[[2]]
+ideal_rand = overall[[3]]
+train_data = overall[[4]]
+train_labels = overall[[5]]
+true_ind = overall[[6]]
 ```
 
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+# user can select a file from either the given gait_data folder of given data, or their own data
+ fileInput("file", label = h4("Please select a text file from the gait_data directory"))
+# there are 12 different waveform features that the user can view per file, here they select which one they are interested in viewing 
+ radioButtons("waveform", label = h4("Select which waveform data to view"), 
+                  choices = list("Left Stride Interval" = "lstride", "Right Stride Interval" 
+                                 = "rstride", "Left Swing Interval" = "lswing", "Right Swing
+                                 Interval" = "rswing", "Left Swing Interval (%)" = "lswing_int",
+                                 "Right Swing Interval (%)" = "rswing_int", "Left Stance
+                                 Interval" = "lstance", "Right Stance Interval" = "rstance",
+                                 "Left Stance Interval (%)" = "lstance_int", "Right Stance 
+                                 Interval (%)" = "rstance_int", "Double Support Interval" = 
+                                 "dsupport", "Double Support Interval (%)" = "dsupport_int"), 
+                  selected = "lstride")
+```
+
+Row {data-height=700, .tabset}
+-----------------------------------------------------------------------
+
+### Raw Data
+
+```{r}
+#plotting the raw form of the waveform data chosen by the user for a selected gait time series data file
+uiOutput("dynamic")
+#function for using the name of selected file to read in file's data
+FileDF = function(filename) {
+  file = read.table(paste0("gait_data/",filename$name))
+  keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
+            'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
+  colnames(file) = keys
+  return(file)
+}
+#make sure file is one of the txt data files and not a random info file, if not give an invalid txt output
+output$dynamic <- renderUI({
+  if (!is.null(input$file)) {
+    filename = input$file
+    if (str_detect(filename$name, ".txt")) {
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) ||
+        (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
+        (str_detect(filename$name, "test"))) {
+          plotlyOutput("plot")
+        } else textOutput("invalidtxt")
+      }
+    else textOutput("invalidtxt")
+  }
+  else textOutput("text")
+})
+
+#plot the raw data
+output$plot <- renderPlotly({
+  
+                  p = ggplot(FileDF(input$file), aes_string(x = "time", y = input$waveform)) + xlab("Time (sec)") + geom_line() 
+                  print(p)
+                })
+output$text <- renderText({ "No file selected" })
+output$invalidtxt <- renderText({"Invalid file selected"})
+
+```
+
+### Processed Data
+
+```{r fig.width=7, fig.height=4}
+# plotting the processed form of the waveform data chosen by the user for a selected gait time series data file
+uiOutput("dynamic2")
+
+#create a function for data pre-processing 
+ProcessDF = function(filename) {
+  #read in data from the file selected by the user
+  file = read.table(paste0("gait_data/",filename$name))
+  keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
+            'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
+  colnames(file) = keys
+  processed = file
+  
+  #create a column with normalized time, starting from 0
+  normTime = 0
+  time1 = as.numeric(unlist(processed$time))
+  for (i in seq(1, length(time1)-1)) {
+    normTime = append(normTime, time1[i]-time1[1])
+  } 
+  processed$normTime = normTime
+  
+  #use mean imputation to replace outlier points in the waveform
+  for (key in keys) {
+        temp = as.numeric(unlist(processed[key]))
+        z = abs(temp - mean(temp))/sd(temp)
+        ind = which(z > 3)
+        temp[ind] = mean(temp)
+        processed[key] = temp
+  }
+  processed <- processed %>% select(-'time')
+  return(processed)
+}
+#make sure file is one of the txt data files and not a random info file, if not give an invalid txt output
+output$dynamic2 <- renderUI({
+  if (!is.null(input$file)) {
+    filename = input$file
+    if (str_detect(filename$name, ".txt")) {
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) ||
+        (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
+        (str_detect(filename$name, "test"))) {
+          plotlyOutput("plot2")
+        } else textOutput("invalidtxt2")
+      }
+    else textOutput("invalidtxt2")
+  }
+  else textOutput("text2")
+})
+#plot processed data, also plotted vertical lines to symbolize where statistical features were calculated for each 30 second time zone. 
+output$plot2 <- renderPlotly({
+                  p = ggplot(ProcessDF(input$file), aes_string(x = "normTime", y = input$waveform)) + geom_line() + xlab("Normalized Time (sec)") + geom_vline(xintercept =  c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300), color = "blue", linetype = "dashed") 
+                  print(p)
+                })
+output$text2 <- renderText({ "No file selected" })
+output$invalidtxt2 <- renderText({"Invalid file selected"})
+
+```
+
+### Final Prediction
+
+Note: The prediction shown is based off the entire uploaded file, not just the selected signal.
+
+```{r}
+
+uiOutput("final")
+#read and evaluate python script to obtain model's prediction for the uploaded data
+getPred = function(filename) {
+  file = filename$name
+  source_python("get_model_pred.py")
+  prediction = get_model_pred(file, train_data, train_labels, true_ind)
+  return(prediction)
+}
+
+output$final <- renderUI({
+  if (!is.null(input$file)) {
+    filename = input$file
+    if (str_detect(filename$name, ".txt")) {
+      if ((str_detect(filename$name,"als")) || (str_detect(filename$name, "park")) ||
+        (str_detect(filename$name, "hunt")) || (str_detect(filename$name, "control")) ||
+        (str_detect(filename$name, "test"))) {
+          textOutput("predtxt")
+        } else textOutput("invalidtext")
+      }
+    else textOutput("invalidtext")
+  }
+  else textOutput("txt")
+})
+
+#print output 
+output$predtxt <- renderText({paste("Based on this file, we predict that
+                                    the subject",getPred(input$file))})
+output$txt <- renderText({ "No file selected" })
+output$invalidtext <- renderText({"Invalid file selected"})
+
+```
+
+Row {data-height=300, .tabset}
+-----------------------------------------------------------------------
+
+### About
+
+Welcome to the Gait Analyzer tool! Here, we look at gait readings from force-sensitive resistors to determine whether a person has ALS, Parkinson's, Huntington's, or none of the above. 
+
+We have trained a Random Forest model to make predictions. The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+
+To learn more about the dataset we used, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
+
+### Instructions
+
+You can select one of the provided text files (in the gait_data directory) to see how we process the data and make predictions. If you want to upload your own data, please make sure the format is the same as the examples provided. In order for this tool to work, you *must* have your data in the .txt file format, and the file itself has to be *in the gait_data directory*. Also make sure the file you provide includes "test" in the name. 
+
+**Important**: Please see the information under "Disclaimer" *before* uploading your own data. 
+
+### Disclaimer
+
+This tool was created for a class and HAS NOT been scientifically validated. Any results derived from this app should be taken with a grain of salt. We are not doctors. This app is not meant to provide any definitive diagnoses. If you have any concerns relating to your gait, please consult a professional instead of relying on what this app says. 
+
+Furthermore, the model we are using has been trained and tested on a very small number of samples (48 and 16, respectively). Therefore, the accuracy provided may not be representative of how our model would perform in a real-world setting. 
