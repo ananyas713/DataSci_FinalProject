@@ -3,8 +3,9 @@ title: "Gait Analyzer"
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
-    social: menu
-    source_code: embed 
+    #social: menu
+    #source_code: embed 
+    theme: united
 runtime: shiny
 ---
 
@@ -19,25 +20,19 @@ py_install("glob2")
 ```
 
 ```{r global, echo = FALSE, warning = FALSE, include = FALSE}
-#read and evaluate python script to obtain model's prediction stats
 source_python("get_model_stats.py")
 overall = get_model_stats()
 train_acc = overall[[1]]
 test_acc = overall[[2]]
 ideal_rand = overall[[3]]
-train_data = overall[[4]]
-train_labels = overall[[5]]
-true_ind = overall[[6]]
+true_ind = overall[[4]]
 ```
 
 Inputs {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r}
-
-# user can select a file from either the given gait_data folder of given data, or their own data
  fileInput("file", label = h4("Please select a text file from the gait_data directory"))
-# there are 12 different waveform features that the user can view per file, here they select which one they are interested in viewing 
  radioButtons("waveform", label = h4("Select which waveform data to view"), 
                   choices = list("Left Stride Interval" = "lstride", "Right Stride Interval" 
                                  = "rstride", "Left Swing Interval" = "lswing", "Right Swing
@@ -56,9 +51,8 @@ Row {data-height=700, .tabset}
 ### Raw Data
 
 ```{r}
-#plotting the raw form of the waveform data chosen by the user for a selected gait time series data file
+
 uiOutput("dynamic")
-#function for using the name of selected file to read in file's data
 FileDF = function(filename) {
   file = read.table(paste0("gait_data/",filename$name))
   keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
@@ -66,7 +60,6 @@ FileDF = function(filename) {
   colnames(file) = keys
   return(file)
 }
-#make sure file is one of the txt data files and not a random info file, if not give an invalid txt output
 output$dynamic <- renderUI({
   if (!is.null(input$file)) {
     filename = input$file
@@ -81,11 +74,9 @@ output$dynamic <- renderUI({
   }
   else textOutput("text")
 })
-
-#plot the raw data
 output$plot <- renderPlotly({
   
-                  p = ggplot(FileDF(input$file), aes_string(x = "time", y = input$waveform)) + xlab("Time (sec)") + geom_line() 
+                  p = ggplot(FileDF(input$file), aes_string(x = "time", y = input$waveform)) + xlab("Time (sec)") + geom_line()
                   print(p)
                 })
 output$text <- renderText({ "No file selected" })
@@ -95,28 +86,21 @@ output$invalidtxt <- renderText({"Invalid file selected"})
 
 ### Processed Data
 
-```{r fig.width=7, fig.height=4}
-# plotting the processed form of the waveform data chosen by the user for a selected gait time series data file
-uiOutput("dynamic2")
+```{r}
 
-#create a function for data pre-processing 
+uiOutput("dynamic2")
 ProcessDF = function(filename) {
-  #read in data from the file selected by the user
   file = read.table(paste0("gait_data/",filename$name))
   keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
             'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
   colnames(file) = keys
   processed = file
-  
-  #create a column with normalized time, starting from 0
   normTime = 0
   time1 = as.numeric(unlist(processed$time))
   for (i in seq(1, length(time1)-1)) {
     normTime = append(normTime, time1[i]-time1[1])
   } 
   processed$normTime = normTime
-  
-  #use mean imputation to replace outlier points in the waveform
   for (key in keys) {
         temp = as.numeric(unlist(processed[key]))
         z = abs(temp - mean(temp))/sd(temp)
@@ -127,7 +111,6 @@ ProcessDF = function(filename) {
   processed <- processed %>% select(-'time')
   return(processed)
 }
-#make sure file is one of the txt data files and not a random info file, if not give an invalid txt output
 output$dynamic2 <- renderUI({
   if (!is.null(input$file)) {
     filename = input$file
@@ -142,9 +125,8 @@ output$dynamic2 <- renderUI({
   }
   else textOutput("text2")
 })
-#plot processed data, also plotted vertical lines to symbolize where statistical features were calculated for each 30 second time zone. 
 output$plot2 <- renderPlotly({
-                  p = ggplot(ProcessDF(input$file), aes_string(x = "normTime", y = input$waveform)) + geom_line() + xlab("Normalized Time (sec)") + geom_vline(xintercept =  c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300), color = "blue", linetype = "dashed") 
+                  p = ggplot(ProcessDF(input$file), aes_string(x = "normTime", y = input$waveform)) + xlab("Normalized Time (sec)") + geom_line() + geom_vline(xintercept =  c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300), color = "blue", linetype = "dashed")
                   print(p)
                 })
 output$text2 <- renderText({ "No file selected" })
@@ -154,16 +136,16 @@ output$invalidtxt2 <- renderText({"Invalid file selected"})
 
 ### Final Prediction
 
-Note: The prediction shown is based off the entire uploaded file, not just the selected signal.
+Note: The prediction shown is based off the entire file, not just the selected component.
 
 ```{r}
 
 uiOutput("final")
-#read and evaluate python script to obtain model's prediction for the uploaded data
+
 getPred = function(filename) {
   file = filename$name
   source_python("get_model_pred.py")
-  prediction = get_model_pred(file, train_data, train_labels, true_ind)
+  prediction = get_model_pred(file, true_ind)
   return(prediction)
 }
 
@@ -182,7 +164,6 @@ output$final <- renderUI({
   else textOutput("txt")
 })
 
-#print output 
 output$predtxt <- renderText({paste("Based on this file, we predict that
                                     the subject",getPred(input$file))})
 output$txt <- renderText({ "No file selected" })

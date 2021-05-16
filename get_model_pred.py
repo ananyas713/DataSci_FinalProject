@@ -9,10 +9,11 @@ Created on Wed May 12 18:18:49 2021
 import numpy as np
 import pandas as pd
 #from sklearn.preprocessing import StandardScaler #no longer applicable
-from sklearn.ensemble import RandomForestClassifier
+#from sklearn.ensemble import RandomForestClassifier
 from scipy import stats
+import pickle
 
-def get_model_pred(filename, train_data, train_labels, true_ind):
+def get_model_pred(filename, true_ind):
     
     keys = ['time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
         'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
@@ -61,8 +62,8 @@ def get_model_pred(filename, train_data, train_labels, true_ind):
             aggfeats['range'+str(wind+1)+'_'+signal] = [np.amax(X[signal]) - np.amin(X[signal])]
         
     #train model on established best train data
-    rf = RandomForestClassifier(max_features='auto', n_estimators=200, max_depth=5, criterion='gini')
-    rf.fit(train_data,train_labels)
+    with open('model.pkl','rb') as f:
+        rf = pickle.load(f)
     
     true_ind = np.asarray(true_ind, dtype=int)
     test_data = aggfeats[aggfeats.columns[true_ind]]
