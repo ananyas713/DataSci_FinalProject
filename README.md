@@ -31,7 +31,7 @@ While this shiny app flexdashboard was created in R, the data processing and mod
 
 If running the app locally, it is highly recommended to use Anaconda and create a virtual environment with these dependencies. 
 
-The app runs through the final_Project.Rmd file. Other files that are required in the same repository as the Rmd include the get_model_stats.py and get_model_pred.py Python files, which run the prediction models, as well as the model.pkl and modelstats.npy files, which hold a snapshot of the trained model and information about its performance, respectively. The data used was from the Gait in Neurodegerative Disease Database on the PhysioNet database; more information can be found at this link: https://www.physionet.org/content/gaitndd/1.0.0/
+The app runs through the final_Project.Rmd file. Other files that are required in the same repository as the Rmd include the *get_model_stats.py* and *get_model_pred.py* Python files, which run the prediction models, as well as the *model.pkl* and *modelstats.npy* files, which hold a snapshot of the trained model and information about its performance, respectively. The data used was from the Gait in Neurodegerative Disease Database on the PhysioNet database; more information can be found at this link: https://www.physionet.org/content/gaitndd/1.0.0/
 
 ### Contributions
 - Ananya: outlier removal, mean imputation, statistical feature generation; PCA, model building; Shiny app user interface, raw data output, and disease prediction output; Shiny app deployment (virtualenv and .Rprofile creation)
