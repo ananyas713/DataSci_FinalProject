@@ -25,6 +25,7 @@ Our model is by no means a method of diagnosis and HAS NOT been scientifically v
 
 ## Live app and Documentation:
 The link to the live app is as follows: https://ananyas713.shinyapps.io/Gait_Analyzer/
+
 Documentation for the app can be found here: 
 
 ## App requirements:
