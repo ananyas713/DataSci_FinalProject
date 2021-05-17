@@ -23,6 +23,10 @@ Users can select either one of the provided text files in the gait_data director
 Our model is by no means a method of diagnosis and HAS NOT been scientifically validated. This model has been trained and tested on a small dataset (48 and 16 respectively), and therefore may not work accurately or effectively in a real-world setting. Please consult a professional if you have any concerns related to your gait.** 
 
 
+## Live app and Documentation:
+The link to the live app is as follows: https://ananyas713.shinyapps.io/Gait_Analyzer/
+Documentation for the app can be found here: 
+
 ## App requirements:
 While this shiny app flexdashboard was created in R, the data processing and modeling were done through Python. 
 - This app was created using Python 3.7 and R 3.6. 
