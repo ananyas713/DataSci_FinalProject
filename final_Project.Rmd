@@ -1,38 +1,44 @@
 ---
 title: "Gait Analyzer"
-output: 
+resource_files:
+- .Rprofile
+- model.pkl
+- modelstats.npy
+runtime: shiny
+output:
   flexdashboard::flex_dashboard:
     orientation: rows
-    #social: menu
-    #source_code: embed 
     theme: united
-runtime: shiny
 ---
 
 ```{r setup, echo = FALSE, warning = FALSE, include = FALSE}
 library(shiny)
-library(reticulate)
 library(tidyverse)
 library(plotly)
-py_install("pandas")
-py_install("scikit-learn")
-py_install("glob2")
+reticulate::virtualenv_create(envname = "gait_analyze", python="python3")
+reticulate::virtualenv_install("gait_analyze", packages =
+                                c('pandas','numpy','scipy','scikit-learn','glob2'))
+reticulate::use_virtualenv("gait_analyze", required = TRUE)
 ```
 
 ```{r global, echo = FALSE, warning = FALSE, include = FALSE}
 #read and evaluate python script to obtain model's prediction stats
-source_python("get_model_stats.py")
+reticulate::source_python("get_model_stats.py")
 overall = get_model_stats()
-train_acc = overall[[1]]
-test_acc = overall[[2]]
+train_acc = overall[[2]]
+test_acc = overall[[1]]
 ideal_rand = overall[[3]]
 true_ind = overall[[4]]
 ```
+
+Prediction Tool
+=======================================================================
 
 Inputs {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r}
+
 # user can select a file from either the given gait_data folder of given data, or their own data
  fileInput("file", label = h4("Please select a text file from the gait_data directory"))
 # there are 12 different waveform features that the user can view per file, here they select which one they are interested in viewing 
@@ -54,11 +60,13 @@ Row {data-height=700, .tabset}
 ### Raw Data
 
 ```{r}
+
 #plotting the raw form of the waveform data chosen by the user for a selected gait time series data file
 uiOutput("dynamic")
+
 #created function for using the name of selected file to read in file's data
 FileDF = function(filename) {
-  file = read.table(paste0("gait_data/",filename$name))
+  file = read.table(filename$datapath)
   keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
             'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
   colnames(file) = keys
@@ -79,6 +87,7 @@ output$dynamic <- renderUI({
   }
   else textOutput("text")
 })
+
 #plot the raw data
 output$plot <- renderPlotly({
   
@@ -93,17 +102,18 @@ output$invalidtxt <- renderText({"Invalid file selected"})
 ### Processed Data
 
 ```{r}
+
 # plotting the processed form of the waveform data chosen by the user for a selected gait time series data file
 uiOutput("dynamic2")
-#created a function for data pre-processing 
+
+#created a function for data pre-processing
 ProcessDF = function(filename) {
   #read in data from the file selected by the user
-  file = read.table(paste0("gait_data/",filename$name))
+  file = read.table(filename$datapath)
   keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
             'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
   colnames(file) = keys
   processed = file
-  
   #create a column with normalized time, starting from 0
   normTime = 0
   time1 = as.numeric(unlist(processed$time))
@@ -137,7 +147,8 @@ output$dynamic2 <- renderUI({
   }
   else textOutput("text2")
 })
-#plot processed data, also plotted vertical lines to symbolize where statistical features were calculated for each 30 second time zone. 
+
+#plot processed data, also plotted vertical lines to symbolize where statistical features were calculated for each 30 second time zone.
 output$plot2 <- renderPlotly({
                   p = ggplot(ProcessDF(input$file), aes_string(x = "normTime", y = input$waveform)) + xlab("Normalized Time (sec)") + geom_line() + geom_vline(xintercept =  c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300), color = "blue", linetype = "dashed")
                   print(p)
@@ -147,18 +158,39 @@ output$invalidtxt2 <- renderText({"Invalid file selected"})
 
 ```
 
+Row {data-height=300}
+-----------------------------------------------------------------------
+
 ### Final Prediction
 
 Note: The prediction shown is based off the entire file, not just the selected component.
 
 ```{r}
 
-uiOutput("final")
 #read and evaluate python script to obtain model's prediction for the uploaded data
+uiOutput("final")
+
 getPred = function(filename) {
-  file = filename$name
-  source_python("get_model_pred.py")
-  prediction = get_model_pred(file, true_ind)
+  file = read.table(filename$datapath)
+  keys = c('time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int',
+            'lstance', 'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int')
+  colnames(file) = keys
+  processed = file
+  normTime = 0
+  time1 = as.numeric(unlist(processed$time))
+  for (i in seq(1, length(time1)-1)) {
+    normTime = append(normTime, time1[i]-time1[1])
+  } 
+  processed$normTime = normTime
+  for (key in keys) {
+        temp = as.numeric(unlist(processed[key]))
+        z = abs(temp - mean(temp))/sd(temp)
+        ind = which(z > 3)
+        temp[ind] = mean(temp)
+        processed[key] = temp
+  }
+  reticulate::source_python("get_model_pred.py")
+  prediction = get_model_pred(as.data.frame(processed), true_ind)
   return(prediction)
 }
 
@@ -176,6 +208,7 @@ output$final <- renderUI({
   }
   else textOutput("txt")
 })
+
 #print prediction for user
 output$predtxt <- renderText({paste("Based on this file, we predict that
                                     the subject",getPred(input$file))})
@@ -184,25 +217,36 @@ output$invalidtext <- renderText({"Invalid file selected"})
 
 ```
 
-Row {data-height=300, .tabset}
------------------------------------------------------------------------
 
-### About
+About
+=======================================================================
 
-Welcome to the Gait Analyzer tool! Here, we look at gait readings from force-sensitive resistors to determine whether a person has ALS, Parkinson's, Huntington's, or none of the above. 
+#### Overview
 
-We have trained a Random Forest model to make predictions. The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+Welcome to the Gait Analyzer tool! Certain neurological disorders can impact the way a person walks. Here, we look at gait readings from force-sensitive resistors to predict whether a person has ALS, Parkinson's, Huntington's, or none of the above. To learn more about the dataset we used, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
 
-To learn more about the dataset we used, visit https://www.physionet.org/content/gaitndd/1.0.0/ 
+#### Model Development
 
-### Instructions
+We have trained and saved a Random Forest model to make predictions. The train accuracy of the model is: `r train_acc` and the test accuracy of the model is: `r test_acc`. 
+Before running the data through the model, we preprocessed the data (removed outliers) and split the time series into 30-second windows. For each waveform, we extracted the mean, variance, median, and range from the overall series and from each time window, resulting in approximately 500 features. We then used PCA to select 5-6 features to isolate and train our model on. 
 
-You can select one of the provided text files (in the gait_data directory) to see how we process the data and make predictions. If you want to upload your own data, please make sure the format is the same as the examples provided. In order for this tool to work, you *must* have your data in the .txt file format, and the file itself has to be *in the gait_data directory*. Also make sure the file you provide includes "test" in the name. 
+If you wish to reproduce our results, download the gait_data directory and the `get_model_stats.py` file. Then, run the `build_model` function within the file. Make sure to check the [associated README file](https://github.com/ds4ph-bme/capstone-project-ananyas713/tree/main), which contains a list of required libraries.
+
+#### Figure Descriptions
+
+For any file uploaded, we generate two plots: the first shows the raw data, and the second shows the processed data. The raw data plot is fairly self-explanatory. The processed data plot involves manipulating the timestamps so that each waveform starts at 0 seconds. It also involves replacing outliers (points that are 3 standard deviations away from the mean) with the mean of the time series. Lastly, using the blue dashed lines, we show how we split the time series into 30-second windows. 
+
+<br>
+
+#### Instructions
+
+You can select one of the provided text files (in the gait_data directory) to see how we process the data and make predictions. The sidebar on the left allows you to select which waveform to view. 
+If you want to upload your own data, please make sure the format is the same as the examples provided. In order for this tool to work, you *must* have your data in the .txt file format, and the file itself has to include "test" in the name. 
 
 **Important**: Please see the information under "Disclaimer" *before* uploading your own data. 
 
-### Disclaimer
+#### Disclaimer
 
-This tool was created for a class and HAS NOT been scientifically validated. Any results derived from this app should be taken with a grain of salt. We are not doctors. This app is not meant to provide any definitive diagnoses. If you have any concerns relating to your gait, please consult a professional instead of relying on what this app says. 
+This tool was created for the Advanced Data Science for Biomedical Engineering Course (EN.580.464/EN.580.664) and HAS NOT been scientifically validated. This app is not meant to provide any definitive diagnoses, nor does it reflect the views of the Johns Hopkins University, the Johns Hopkins Hospital, or any of their affiliates. If you have any concerns relating to your gait, please consult a professional instead of relying on what this app says. 
 
 Furthermore, the model we are using has been trained and tested on a very small number of samples (48 and 16, respectively). Therefore, the accuracy provided may not be representative of how our model would perform in a real-world setting. 

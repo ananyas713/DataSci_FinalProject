@@ -8,41 +8,12 @@ Created on Wed May 12 18:18:49 2021
 
 import numpy as np
 import pandas as pd
-#from sklearn.preprocessing import StandardScaler #no longer applicable
-#from sklearn.ensemble import RandomForestClassifier
-from scipy import stats
 import pickle
 
-def get_model_pred(filename, true_ind):
-    
-    keys = ['time', 'lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
-        'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
-    
-    file = 'gait_data/'+filename
-    #read in file as table
-    X = pd.read_table(file,header=None) 
-    X.columns = keys
-    
-    f_keys = ['lstride', 'rstride', 'lswing', 'rswing', 'lswing_int', 'rswing_int', 'lstance', 
-        'rstance', 'lstance_int', 'rstance_int', 'dsupport', 'dsupport_int']
-    
-    for key in f_keys:
-        temp = np.asarray(X[key])
-        #find absolute z scores for each value
-        z = np.abs(stats.zscore(temp)) 
-        ind = np.where(z > 3)
-        #replace outliers with the mean value
-        temp[ind] = np.mean(temp)
-        X[key] = temp
-        
-    #get time since start for each patient
-    normTime = []
-    time1 = np.asarray(X['time'])
-    for j in range(len(X)):
-        normTime.append(time1[j]-time1[0])
-    X['normTime'] = normTime
-    
+def get_model_pred(X, true_ind):
+  
     aggfeats = pd.DataFrame()
+    
     windows = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
 
     #find statistics for entirety of time series data
